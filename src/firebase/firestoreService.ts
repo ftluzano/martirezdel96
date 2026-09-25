@@ -204,8 +204,9 @@ export const subscribeServices = (
   let isListening = true;
 
   try {
+    const q = query(collection(db, 'services'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(
-      collection(db, 'services'),
+      q,
       (snapshot) => {
         if (!isListening) return;
         const list: ServiceRequest[] = [];
