@@ -122,6 +122,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(saved);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
           });
+        } else {
+          setCurrentUser(null);
+          localStorage.removeItem(STORAGE_KEY);
         }
         setLoading(false);
       });
@@ -137,19 +140,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const normalizedEmail = email.trim();
-      let uid = 'usr-' + Math.random().toString(36).substring(2, 9);
-      let displayName = normalizedEmail.split('@')[0];
-
-      try {
-        const cred = await signInWithEmailAndPassword(auth, normalizedEmail, password);
-        uid = cred.user.uid;
-        displayName = cred.user.displayName || displayName;
-      } catch (err: any) {
-        // Fallback for simulated or demo accounts in the prototype
-        if (err.code !== 'auth/operation-not-allowed' && err.code !== 'auth/user-not-found' && err.code !== 'auth/wrong-password' && err.code !== 'auth/invalid-credential') {
-          console.warn('Auth notice, proceeding with validated local session:', err.message);
-        }
-      }
+      const cred = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+      const uid = cred.user.uid;
+      let displayName = cred.user.displayName || normalizedEmail.split('@')[0];
 
       // Check if Franklin Kyle Luzano
       if (normalizedEmail.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
@@ -177,18 +170,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithGoogle = async () => {
     setLoading(true);
     try {
-      let uid = 'g-' + Math.random().toString(36).substring(2, 9);
-      let email = 'resident.user@gmail.com';
-      let displayName = 'Google Resident';
-
-      try {
-        const cred = await signInWithPopup(auth, googleProvider);
-        uid = cred.user.uid;
-        email = cred.user.email || email;
-        displayName = cred.user.displayName || displayName;
-      } catch (err: any) {
-        console.warn('Google popup notice (using local session fallback):', err.message);
-      }
+      const cred = await signInWithPopup(auth, googleProvider);
+      const uid = cred.user.uid;
+      const email = cred.user.email || '';
+      const displayName = cred.user.displayName || email.split('@')[0] || 'Google Resident';
 
       const role = determineRoleForEmail(email);
       const user: UserProfile = {
@@ -212,17 +197,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const normalizedEmail = email.trim();
-      let uid = 'usr-' + Math.random().toString(36).substring(2, 9);
-
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
-        if (cred.user) {
-          uid = cred.user.uid;
-          await updateFirebaseProfile(cred.user, { displayName: name });
-        }
-      } catch (err: any) {
-        console.warn('Register fallback notice:', err.message);
-      }
+      const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+      const uid = cred.user.uid;
+      await updateFirebaseProfile(cred.user, { displayName: name });
 
       const effectiveRole = role || determineRoleForEmail(normalizedEmail);
       const user: UserProfile = {

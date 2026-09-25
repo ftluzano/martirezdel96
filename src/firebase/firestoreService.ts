@@ -243,20 +243,22 @@ export const subscribeServices = (
 };
 
 export const saveServiceToDb = async (service: ServiceRequest): Promise<void> => {
-  const normalizedService: ServiceRequest = {
+  const normalizedService = Object.fromEntries(
+    Object.entries({
     ...service,
     referenceNumber: service.referenceNumber?.trim() || generateServiceReferenceNumber(),
     createdAt: service.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
-  };
-
-  const current = getCache<ServiceRequest>(CACHE_KEYS.SERVICES);
-  const updated = [normalizedService, ...current.filter(s => s.id !== normalizedService.id && s.referenceNumber !== normalizedService.referenceNumber)];
-  setCache(CACHE_KEYS.SERVICES, updated);
+    }).filter(([, value]) => value !== undefined)
+  ) as unknown as ServiceRequest;
 
   try {
     const docRef = doc(db, 'services', normalizedService.id);
     await setDoc(docRef, normalizedService, { merge: true });
+
+    const current = getCache<ServiceRequest>(CACHE_KEYS.SERVICES);
+    const updated = [normalizedService, ...current.filter(s => s.id !== normalizedService.id && s.referenceNumber !== normalizedService.referenceNumber)];
+    setCache(CACHE_KEYS.SERVICES, updated);
   } catch (error: any) {
     console.error('[Firestore Services] Cloud write failed:', error?.message);
     throw new Error(`Report could not be saved to the live database: ${error?.message || 'unknown Firestore error'}`);
