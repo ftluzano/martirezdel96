@@ -147,7 +147,8 @@ export const saveDocumentToDb = async (docApp: DocumentApplication): Promise<voi
 export const updateDocumentStatusInDb = async (
   id: string,
   status: RequestStatus,
-  notes?: string
+  notes?: string,
+  providedFile?: Pick<DocumentApplication, 'providedFileName' | 'providedFileType' | 'providedFileData' | 'providedFileSize' | 'providedAt'>
 ): Promise<void> => {
   const current = getCache<DocumentApplication>(CACHE_KEYS.DOCUMENTS);
   const updated = current.map(d => {
@@ -156,12 +157,12 @@ export const updateDocumentStatusInDb = async (
         ...d,
         status,
         notes: notes !== undefined ? notes : d.notes,
+        ...providedFile,
         dateProcessed: status === 'completed' || status === 'ready-pickup' ? new Date().toISOString().split('T')[0] : d.dateProcessed
       };
     }
     return d;
   });
-  setCache(CACHE_KEYS.DOCUMENTS, updated);
 
   try {
     const docRef = doc(db, 'documents', id);
@@ -170,12 +171,15 @@ export const updateDocumentStatusInDb = async (
       updatedAt: new Date().toISOString()
     };
     if (notes !== undefined) updates.notes = notes;
+    if (providedFile) Object.assign(updates, providedFile);
     if (status === 'completed' || status === 'ready-pickup') {
       updates.dateProcessed = new Date().toISOString().split('T')[0];
     }
     await setDoc(docRef, updates, { merge: true });
+    setCache(CACHE_KEYS.DOCUMENTS, updated);
   } catch (error: any) {
-    console.warn('[Firestore Documents] Status update cloud notice:', error?.message);
+    console.error('[Firestore Documents] Status update failed:', error?.message);
+    throw new Error(`Document update could not be saved: ${error?.message || 'unknown Firestore error'}`);
   }
 };
 

@@ -114,22 +114,29 @@ function MainPortal() {
     }
   };
 
-  const handleUpdateDocStatus = async (id: string, status: RequestStatus, notes?: string) => {
-    setDocuments(prev => prev.map(d => {
-      if (d.id === id) {
-        return {
-          ...d,
-          status,
-          notes: notes !== undefined ? notes : d.notes,
-          dateProcessed: status === 'completed' || status === 'ready-pickup' ? new Date().toISOString().split('T')[0] : d.dateProcessed
-        };
-      }
-      return d;
-    }));
+  const handleUpdateDocStatus = async (
+    id: string,
+    status: RequestStatus,
+    notes?: string,
+    providedFile?: Pick<DocumentApplication, 'providedFileName' | 'providedFileType' | 'providedFileData' | 'providedFileSize' | 'providedAt'>
+  ) => {
     try {
-      await updateDocumentStatusInDb(id, status, notes);
+      await updateDocumentStatusInDb(id, status, notes, providedFile);
+      setDocuments(prev => prev.map(d => {
+        if (d.id === id) {
+          return {
+            ...d,
+            status,
+            notes: notes !== undefined ? notes : d.notes,
+            ...providedFile,
+            dateProcessed: status === 'completed' || status === 'ready-pickup' ? new Date().toISOString().split('T')[0] : d.dateProcessed
+          };
+        }
+        return d;
+      }));
     } catch (err) {
       console.warn('Failed to update document in Firestore:', err);
+      throw err;
     }
   };
 

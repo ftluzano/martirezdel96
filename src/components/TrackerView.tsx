@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { DocumentApplication, ServiceRequest } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Search, Eye, FileText, Wrench, Camera, X, CheckCircle, Clock, AlertCircle, User } from 'lucide-react';
-import { DocumentCertificateModal } from './DocumentCertificateModal';
+import { Search, Download, FileText, Wrench, Camera, X, CheckCircle, Clock, AlertCircle, User } from 'lucide-react';
 
 interface TrackerViewProps {
   documents: DocumentApplication[];
@@ -20,7 +19,6 @@ export const TrackerView: React.FC<TrackerViewProps> = ({
   const { currentUser } = useAuth();
   const [searchRef, setSearchRef] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'mine' | 'documents' | 'services'>('all');
-  const [selectedPreviewDoc, setSelectedPreviewDoc] = useState<DocumentApplication | null>(null);
   const [viewingPhotoProof, setViewingPhotoProof] = useState<{ url: string; title: string; ref: string } | null>(null);
 
   const cleanSearch = searchRef.trim().toLowerCase();
@@ -210,14 +208,18 @@ export const TrackerView: React.FC<TrackerViewProps> = ({
 
               <div className="flex items-center gap-2">
                 {getStatusBadge(doc.status)}
-                <button
-                  type="button"
-                  onClick={() => setSelectedPreviewDoc(doc)}
-                  className="px-2.5 py-1 text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-lg flex items-center gap-1 font-semibold transition-colors cursor-pointer"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>View Certificate</span>
-                </button>
+                {doc.providedFileData ? (
+                  <a
+                    href={doc.providedFileData}
+                    download={doc.providedFileName || 'barangay-document'}
+                    className="px-2.5 py-1 text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-lg flex items-center gap-1 font-semibold transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download file</span>
+                  </a>
+                ) : (
+                  <span className="text-[11px] text-slate-400 italic">Waiting for official file</span>
+                )}
               </div>
             </div>
 
@@ -328,12 +330,6 @@ export const TrackerView: React.FC<TrackerViewProps> = ({
         )}
       </div>
 
-      {selectedPreviewDoc && (
-        <DocumentCertificateModal
-          doc={selectedPreviewDoc}
-          onClose={() => setSelectedPreviewDoc(null)}
-        />
-      )}
 
       {/* Photo Proof Fullscreen Modal */}
       {viewingPhotoProof && (

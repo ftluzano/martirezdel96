@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { DOCUMENT_CATALOG, BARANGAY_AREAS } from '../data/mockData';
 import { DocumentApplication, DocumentType } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { FileText, ArrowRight, Eye, CheckCircle2 } from 'lucide-react';
-import { DocumentCertificateModal } from './DocumentCertificateModal';
+import { FileText, ArrowRight, Download, CheckCircle2 } from 'lucide-react';
 
 interface DocumentProcessingViewProps {
   onAddDocument: (doc: DocumentApplication) => void;
@@ -29,7 +28,6 @@ export const DocumentProcessingView: React.FC<DocumentProcessingViewProps> = ({
   const [yearsOfResidency, setYearsOfResidency] = useState<number>(1);
   const [purpose, setPurpose] = useState('');
   const [createdDoc, setCreatedDoc] = useState<DocumentApplication | null>(null);
-  const [previewDoc, setPreviewDoc] = useState<DocumentApplication | null>(null);
 
   const selectedDocConfig = DOCUMENT_CATALOG.find(d => d.type === selectedType) || DOCUMENT_CATALOG[0];
 
@@ -151,13 +149,18 @@ export const DocumentProcessingView: React.FC<DocumentProcessingViewProps> = ({
                         {app.status === 'ready-pickup' ? 'Ready for Pick-up' : app.status}
                       </span>
 
-                      <button
-                        onClick={() => setPreviewDoc(app)}
-                        className="px-2 py-1 text-slate-600 hover:text-blue-700 border border-slate-200 rounded text-xs flex items-center gap-1"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>View Certificate</span>
-                      </button>
+                      {app.providedFileData ? (
+                        <a
+                          href={app.providedFileData}
+                          download={app.providedFileName || 'barangay-document'}
+                          className="px-2 py-1 text-emerald-700 hover:text-emerald-900 border border-emerald-200 bg-emerald-50 rounded text-xs flex items-center gap-1"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download provided file</span>
+                        </a>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 italic">Waiting for official file</span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -287,14 +290,7 @@ export const DocumentProcessingView: React.FC<DocumentProcessingViewProps> = ({
               </div>
 
               <div className="flex items-center justify-center gap-2 pt-2">
-                {createdDoc && (
-                  <button
-                    onClick={() => setPreviewDoc(createdDoc)}
-                    className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg"
-                  >
-                    View Certificate
-                  </button>
-                )}
+                <span className="text-xs text-slate-500">An admin or official will attach the approved file here when ready.</span>
                 <button
                   onClick={() => setIsApplying(false)}
                   className="px-3 py-1.5 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50"
@@ -305,13 +301,6 @@ export const DocumentProcessingView: React.FC<DocumentProcessingViewProps> = ({
             </div>
           )}
         </div>
-      )}
-
-      {previewDoc && (
-        <DocumentCertificateModal
-          doc={previewDoc}
-          onClose={() => setPreviewDoc(null)}
-        />
       )}
 
     </div>

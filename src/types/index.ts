@@ -44,6 +44,11 @@ export interface DocumentApplication {
   cedulaNumber?: string;
   orNumber?: string;
   officerInCharge?: string;
+  providedFileName?: string;
+  providedFileType?: string;
+  providedFileData?: string;
+  providedFileSize?: number;
+  providedAt?: string;
 }
 
 export type ServiceCategory = 

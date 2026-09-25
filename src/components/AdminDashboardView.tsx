@@ -21,7 +21,6 @@ import {
   Megaphone,
   Send
 } from 'lucide-react';
-import { DocumentCertificateModal } from './DocumentCertificateModal';
 
 interface AdminDashboardViewProps {
   documents: DocumentApplication[];
@@ -29,7 +28,12 @@ interface AdminDashboardViewProps {
   users: UserProfile[];
   announcements: Announcement[];
   onAddAnnouncement: (newAnn: Announcement) => void;
-  onUpdateDocStatus: (id: string, status: RequestStatus, notes?: string) => void;
+  onUpdateDocStatus: (
+    id: string,
+    status: RequestStatus,
+    notes?: string,
+    providedFile?: Pick<DocumentApplication, 'providedFileName' | 'providedFileType' | 'providedFileData' | 'providedFileSize' | 'providedAt'>
+  ) => Promise<void>;
   onUpdateServiceStatus: (id: string, status: RequestStatus, resolutionNotes?: string) => void;
   onUpdateUserRole: (uidOrEmail: string, newRole: UserRole) => void;
 }
@@ -53,7 +57,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [selectedDocForPreview, setSelectedDocForPreview] = useState<DocumentApplication | null>(null);
+  const [uploadingDocumentId, setUploadingDocumentId] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<ServiceRequest | null>(null);
   const [viewingProof, setViewingProof] = useState<{ url: string; title: string; ref: string } | null>(null);
   const [actionSuccessNotice, setActionSuccessNotice] = useState<string | null>(null);
@@ -111,6 +115,42 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     onUpdateServiceStatus(srv.id, newStatus);
     setSelectedService({ ...srv, status: newStatus });
     showToast(`Updated ticket ${srv.referenceNumber} to ${newStatus}`);
+  };
+
+  const handleDocumentFileUpload = async (doc: DocumentApplication, file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 700 * 1024) {
+      showToast('File is too large. Please upload a PDF or image under 700 KB.');
+      return;
+    }
+    if (!['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      showToast('Only PDF, JPG, PNG, and WebP files can be provided.');
+      return;
+    }
+
+    setUploadingDocumentId(doc.id);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        await onUpdateDocStatus(doc.id, doc.status, undefined, {
+          providedFileName: file.name,
+          providedFileType: file.type,
+          providedFileData: reader.result as string,
+          providedFileSize: file.size,
+          providedAt: new Date().toISOString()
+        });
+        showToast(`Provided file attached to ${doc.referenceNumber}.`);
+      } catch (error: any) {
+        showToast(error?.message || 'The file could not be saved. Please try again.');
+      } finally {
+        setUploadingDocumentId(null);
+      }
+    };
+    reader.onerror = () => {
+      setUploadingDocumentId(null);
+      showToast('The file could not be read. Please try again.');
+    };
+    reader.readAsDataURL(file);
   };
 
   React.useEffect(() => {
@@ -708,7 +748,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   <th className="py-2.5 px-3">Applicant Name</th>
                   <th className="py-2.5 px-3">Fee</th>
                   <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3 text-right">Certificate Action</th>
+                  <th className="py-2.5 px-3 text-right">Provide File</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -745,13 +785,30 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                         <option value="rejected">Rejected</option>
                       </select>
                     </td>
-                    <td className="py-3 px-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => setSelectedDocForPreview(doc)}
-                        className="px-3 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer transition-colors"
-                      >
-                        Preview Certificate
-                      </button>
+                    <td className="py-3 px-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {doc.providedFileData && (
+                          <a
+                            href={doc.providedFileData}
+                            download={doc.providedFileName || 'barangay-document'}
+                            className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 whitespace-nowrap"
+                          >
+                            File attached
+                          </a>
+                        )}
+                        <label className={`px-3 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer transition-colors ${uploadingDocumentId === doc.id ? 'opacity-60 pointer-events-none' : ''}`}>
+                          {uploadingDocumentId === doc.id ? 'Reading file...' : doc.providedFileData ? 'Replace file' : 'Upload file'}
+                          <input
+                            type="file"
+                            accept="application/pdf,image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            onChange={(e) => {
+                              handleDocumentFileUpload(doc, e.target.files?.[0]);
+                              e.currentTarget.value = '';
+                            }}
+                          />
+                        </label>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -954,12 +1011,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       )}
 
       {/* Certificate Modal */}
-      {selectedDocForPreview && (
-        <DocumentCertificateModal
-          doc={selectedDocForPreview}
-          onClose={() => setSelectedDocForPreview(null)}
-        />
-      )}
 
       {/* Resident Proof Modal */}
       {viewingProof && (
