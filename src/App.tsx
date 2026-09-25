@@ -233,6 +233,8 @@ function MainPortal() {
             documents={documents}
             services={services}
             users={users}
+            announcements={announcements}
+            onAddAnnouncement={handleAddAnnouncement}
             onUpdateDocStatus={handleUpdateDocStatus}
             onUpdateServiceStatus={handleUpdateServiceStatus}
             onUpdateUserRole={handleUpdateUserRole}

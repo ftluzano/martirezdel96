@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DocumentApplication, ServiceRequest, RequestStatus, UserProfile, UserRole } from '../types';
+import { Announcement, DocumentApplication, ServiceRequest, RequestStatus, UserProfile, UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { 
   FileText, 
@@ -16,7 +16,10 @@ import {
   UserPlus,
   Mail,
   Phone,
-  AlertTriangle
+  AlertTriangle,
+  Bell,
+  Megaphone,
+  Send
 } from 'lucide-react';
 import { DocumentCertificateModal } from './DocumentCertificateModal';
 
@@ -24,6 +27,8 @@ interface AdminDashboardViewProps {
   documents: DocumentApplication[];
   services: ServiceRequest[];
   users: UserProfile[];
+  announcements: Announcement[];
+  onAddAnnouncement: (newAnn: Announcement) => void;
   onUpdateDocStatus: (id: string, status: RequestStatus, notes?: string) => void;
   onUpdateServiceStatus: (id: string, status: RequestStatus, resolutionNotes?: string) => void;
   onUpdateUserRole: (uidOrEmail: string, newRole: UserRole) => void;
@@ -33,6 +38,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   documents,
   services,
   users,
+  announcements,
+  onAddAnnouncement,
   onUpdateDocStatus,
   onUpdateServiceStatus,
   onUpdateUserRole
@@ -49,6 +56,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [selectedDocForPreview, setSelectedDocForPreview] = useState<DocumentApplication | null>(null);
   const [viewingProof, setViewingProof] = useState<{ url: string; title: string; ref: string } | null>(null);
   const [actionSuccessNotice, setActionSuccessNotice] = useState<string | null>(null);
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementText, setAnnouncementText] = useState('');
+  const [announcementCategory, setAnnouncementCategory] = useState<Announcement['category']>('Advisory');
+  const [announcementUrgent, setAnnouncementUrgent] = useState(false);
 
   // Metrics
   const pendingDocs = documents.filter(d => d.status === 'pending').length;
@@ -65,6 +76,29 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     setTimeout(() => {
       setActionSuccessNotice(null);
     }, 4000);
+  };
+
+  const handleAnnouncementSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!announcementTitle.trim() || !announcementText.trim()) return;
+
+    const newAnnouncement: Announcement = {
+      id: 'ann-' + Date.now(),
+      title: announcementTitle.trim(),
+      category: announcementCategory,
+      content: announcementText.trim(),
+      date: new Date().toISOString().split('T')[0],
+      author: currentUser?.displayName || 'Barangay Team',
+      authorRole: currentUser?.role === 'admin' ? 'Administrator' : 'Official',
+      isUrgent: announcementUrgent,
+    };
+
+    onAddAnnouncement(newAnnouncement);
+    setAnnouncementTitle('');
+    setAnnouncementText('');
+    setAnnouncementCategory('Advisory');
+    setAnnouncementUrgent(false);
+    showToast('Announcement published live to the community updates feed.');
   };
 
   const handleRoleChange = (targetUser: UserProfile, newRole: UserRole) => {
@@ -136,7 +170,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-              {isAdmin ? 'Barangay Administrative & Role Desk' : 'Barangay Official Operations Desk'}
+              {isAdmin ? 'Barangay Response & Administration Desk' : 'Barangay Report Monitoring Desk'}
             </h1>
             {isAdmin ? (
               <span className="px-2.5 py-0.5 bg-purple-100 border border-purple-300 text-purple-800 text-[10px] font-bold rounded-full uppercase">
@@ -150,8 +184,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
           <p className="text-xs text-slate-500 mt-1">
             {isAdmin 
-              ? 'Administrator Franklin Kyle Luzano: Manage user access, assign Official roles, inspect community reports, and review documents.'
-              : 'Barangay Official Staff: Monitor resident concerns, review reported issues, and update action statuses.'}
+              ? 'Track citizen reports, assign response actions, and publish live barangay advisories in real time.'
+              : 'Review resident concerns, update case statuses, and publish official announcements without refreshing the portal.'}
           </p>
         </div>
       </div>
@@ -193,6 +227,95 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           <p className="text-2xl font-black font-mono text-emerald-600 mt-1">{officialsCount}</p>
           <span className="text-[10px] text-slate-400 mt-0.5 block">Authorized barangay team</span>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_0.9fr] gap-4">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 text-slate-900">
+              <Bell className="w-4 h-4 text-blue-600" />
+              <h3 className="text-sm font-bold">Live Operations Summary</h3>
+            </div>
+            <span className="text-[10px] uppercase font-bold tracking-wide text-slate-400">Realtime</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200">
+              <div className="text-rose-700 font-bold text-xl">{pendingServices}</div>
+              <div className="text-rose-600 font-medium">Pending Reports</div>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+              <div className="text-amber-700 font-bold text-xl">{services.filter(s => s.status === 'in-review').length}</div>
+              <div className="text-amber-600 font-medium">In Review</div>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+              <div className="text-emerald-700 font-bold text-xl">{resolvedServices}</div>
+              <div className="text-emerald-600 font-medium">Resolved</div>
+            </div>
+            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
+              <div className="text-blue-700 font-bold text-xl">{announcements.length}</div>
+              <div className="text-blue-600 font-medium">Announcements</div>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleAnnouncementSubmit} className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 text-slate-900">
+              <Megaphone className="w-4 h-4 text-violet-600" />
+              <h3 className="text-sm font-bold">Publish an Advisory</h3>
+            </div>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            <input
+              type="text"
+              value={announcementTitle}
+              onChange={(e) => setAnnouncementTitle(e.target.value)}
+              placeholder="Announcement title"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
+            />
+
+            <select
+              value={announcementCategory}
+              onChange={(e) => setAnnouncementCategory(e.target.value as Announcement['category'])}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
+            >
+              <option value="Advisory">Advisory</option>
+              <option value="Emergency">Emergency</option>
+              <option value="Health">Health</option>
+              <option value="Events">Events</option>
+              <option value="Youth">Youth</option>
+              <option value="General">General</option>
+            </select>
+
+            <textarea
+              rows={3}
+              value={announcementText}
+              onChange={(e) => setAnnouncementText(e.target.value)}
+              placeholder="Share update, reminder, or alert for residents..."
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
+            />
+
+            <label className="flex items-center gap-2 text-slate-700">
+              <input
+                type="checkbox"
+                checked={announcementUrgent}
+                onChange={(e) => setAnnouncementUrgent(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-red-600 focus:ring-red-500"
+              />
+              Mark as urgent
+            </label>
+
+            <button
+              type="submit"
+              className="w-full px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5" />
+              Publish live update
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Tabs & Search Controls */}
