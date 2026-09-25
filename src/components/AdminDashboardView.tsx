@@ -441,16 +441,16 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full table-fixed text-left text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                    <th className="py-2.5 px-3">Ticket Ref</th>
-                    <th className="py-2.5 px-3">Category</th>
-                    <th className="py-2.5 px-3">Report Details</th>
-                    <th className="py-2.5 px-3">Photo Proof</th>
-                    <th className="py-2.5 px-3">Reported By / Area</th>
-                    <th className="py-2.5 px-3">Priority</th>
-                    <th className="py-2.5 px-3">Update Status</th>
+                    <th className="w-[20%] py-2.5 px-2 sm:px-3">Ticket Ref</th>
+                    <th className="hidden 2xl:table-cell w-[13%] py-2.5 px-3">Category</th>
+                    <th className="w-[31%] py-2.5 px-2 sm:px-3">Report Details</th>
+                    <th className="hidden 2xl:table-cell w-[14%] py-2.5 px-3">Photo Proof</th>
+                    <th className="w-[21%] py-2.5 px-2 sm:px-3">Reported By / Area</th>
+                    <th className="hidden 2xl:table-cell w-[10%] py-2.5 px-3">Priority</th>
+                    <th className="w-[18%] py-2.5 px-2 sm:px-3">Update Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -460,21 +460,21 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       onClick={() => setSelectedService(srv)}
                       className={`hover:bg-slate-50 transition-colors cursor-pointer ${selectedService?.id === srv.id ? 'bg-blue-50/60' : ''}`}
                     >
-                      <td className="py-3 px-3 font-mono font-bold text-blue-700 whitespace-nowrap">
+                      <td className="py-3 px-2 sm:px-3 font-mono font-bold text-blue-700 align-top break-words">
                         {srv.referenceNumber}
                         <span className="block text-[10px] text-slate-400 font-normal">{srv.dateReported}</span>
                       </td>
-                      <td className="py-3 px-3 capitalize font-medium whitespace-nowrap">
+                      <td className="hidden 2xl:table-cell py-3 px-3 capitalize font-medium whitespace-nowrap">
                         <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 font-semibold text-[11px]">
                           {srv.category.replace(/-/g, ' ')}
                         </span>
                       </td>
-                      <td className="py-3 px-3 max-w-xs">
+                      <td className="py-3 px-2 sm:px-3 align-top break-words">
                         <div className="font-bold text-slate-900 leading-snug">{srv.title}</div>
                         <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{srv.description}</p>
                         <div className="text-[10px] text-slate-400 mt-1 font-medium">📍 {srv.location}</div>
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap">
+                      <td className="hidden 2xl:table-cell py-3 px-3 whitespace-nowrap">
                         {srv.photoProof ? (
                           <div className="flex items-center gap-2">
                             <button
@@ -510,12 +510,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                           <span className="text-slate-400 text-[11px] italic">No image</span>
                         )}
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap">
+                      <td className="py-3 px-2 sm:px-3 align-top break-words">
                         <div className="font-semibold text-slate-800">{srv.reportedBy}</div>
                         <div className="text-[11px] text-slate-500">{srv.purok}</div>
                         <div className="text-[10px] text-slate-400">{srv.contactNumber}</div>
                       </td>
-                      <td className="py-3 px-3 capitalize whitespace-nowrap">
+                      <td className="hidden 2xl:table-cell py-3 px-3 capitalize whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                           srv.priority === 'urgent'
                             ? 'bg-red-100 text-red-800 animate-pulse'
@@ -526,7 +526,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                           {srv.priority}
                         </span>
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-3 px-2 sm:px-3 align-top" onClick={(e) => e.stopPropagation()}>
                         <select
                           value={srv.status}
                           onChange={(e) => {
@@ -535,7 +535,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                             setSelectedService({ ...srv, status: newStatus });
                             showToast(`Updated ticket ${srv.referenceNumber} to ${newStatus}`);
                           }}
-                          className={`text-xs font-bold py-1 px-2.5 rounded-lg border cursor-pointer ${
+                          className={`w-full min-w-0 text-[10px] sm:text-xs font-bold py-1 px-1 sm:px-2 rounded-lg border cursor-pointer ${
                             srv.status === 'completed'
                               ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
                               : srv.status === 'ready-pickup'
@@ -605,6 +605,33 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   <div><strong className="text-slate-800">Resident:</strong> {selectedService.reportedBy}</div>
                   <div><strong className="text-slate-800">Contact:</strong> {selectedService.contactNumber}</div>
                   <div><strong className="text-slate-800">Location:</strong> {selectedService.location}</div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <a
+                    href={selectedService.contactNumber && selectedService.contactNumber !== 'N/A' ? `tel:${selectedService.contactNumber}` : undefined}
+                    aria-disabled={!selectedService.contactNumber || selectedService.contactNumber === 'N/A'}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold ${
+                      selectedService.contactNumber && selectedService.contactNumber !== 'N/A'
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-slate-200 text-slate-400 pointer-events-none'
+                    }`}
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    Call resident
+                  </a>
+                  <a
+                    href={selectedService.reporterEmail && !selectedService.reporterEmail.startsWith('confidential@') ? `mailto:${selectedService.reporterEmail}?subject=${encodeURIComponent(`Regarding report ${selectedService.referenceNumber}`)}` : undefined}
+                    aria-disabled={!selectedService.reporterEmail || selectedService.reporterEmail.startsWith('confidential@')}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-bold ${
+                      selectedService.reporterEmail && !selectedService.reporterEmail.startsWith('confidential@')
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-slate-200 text-slate-400 pointer-events-none'
+                    }`}
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    Email resident
+                  </a>
                 </div>
 
                 {selectedService.photoProof && (
