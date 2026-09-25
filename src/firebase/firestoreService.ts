@@ -184,6 +184,20 @@ export const updateDocumentStatusInDb = async (
 // ==========================================
 // SERVICE REQUESTS / RESIDENT REPORTS
 // ==========================================
+const mergeServiceRecords = (cloud: ServiceRequest[], cached: ServiceRequest[]) => {
+  const merged = new Map<string, ServiceRequest>();
+
+  [...cached, ...cloud].forEach((entry) => {
+    const key = entry.id || entry.referenceNumber;
+    if (!key) return;
+
+    const existing = merged.get(key);
+    merged.set(key, existing ? { ...existing, ...entry } : entry);
+  });
+
+  return Array.from(merged.values()).sort((a, b) => (b.dateReported || '').localeCompare(a.dateReported || ''));
+};
+
 export const subscribeServices = (
   onData: (services: ServiceRequest[]) => void
 ): Unsubscribe => {
@@ -204,13 +218,16 @@ export const subscribeServices = (
           };
           list.push(normalized);
         });
-        list.sort((a, b) => (b.dateReported || '').localeCompare(a.dateReported || ''));
-        setCache(CACHE_KEYS.SERVICES, list);
-        onData(list);
+
+        const cached = getCache<ServiceRequest>(CACHE_KEYS.SERVICES);
+        const merged = mergeServiceRecords(list, cached);
+        setCache(CACHE_KEYS.SERVICES, merged);
+        onData(merged);
       },
       (err) => {
         console.warn('[Firestore Services] Realtime listener notice:', err.message);
-        onData(getCache<ServiceRequest>(CACHE_KEYS.SERVICES));
+        const fallback = getCache<ServiceRequest>(CACHE_KEYS.SERVICES);
+        onData(fallback);
       }
     );
 
@@ -228,11 +245,13 @@ export const subscribeServices = (
 export const saveServiceToDb = async (service: ServiceRequest): Promise<void> => {
   const normalizedService: ServiceRequest = {
     ...service,
-    referenceNumber: service.referenceNumber?.trim() || generateServiceReferenceNumber()
+    referenceNumber: service.referenceNumber?.trim() || generateServiceReferenceNumber(),
+    createdAt: service.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
   const current = getCache<ServiceRequest>(CACHE_KEYS.SERVICES);
-  const updated = [normalizedService, ...current.filter(s => s.id !== normalizedService.id)];
+  const updated = [normalizedService, ...current.filter(s => s.id !== normalizedService.id && s.referenceNumber !== normalizedService.referenceNumber)];
   setCache(CACHE_KEYS.SERVICES, updated);
 
   try {
@@ -240,6 +259,9 @@ export const saveServiceToDb = async (service: ServiceRequest): Promise<void> =>
     await setDoc(docRef, normalizedService, { merge: true });
   } catch (error: any) {
     console.warn('[Firestore Services] Cloud sync notice (saved locally):', error?.message);
+    // Last-resort persisted copy so the admin dashboard can still recover the record in the same browser session.
+    const persisted = getCache<ServiceRequest>(CACHE_KEYS.SERVICES);
+    setCache(CACHE_KEYS.SERVICES, [normalizedService, ...persisted.filter(s => s.id !== normalizedService.id && s.referenceNumber !== normalizedService.referenceNumber)]);
   }
 };
 

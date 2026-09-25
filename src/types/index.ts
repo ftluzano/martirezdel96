@@ -79,6 +79,8 @@ export interface ServiceRequest {
   contactNumber: string;
   reporterEmail: string;
   dateReported: string;
+  createdAt?: string;
+  updatedAt?: string;
   photoProof?: string;
   assignedTeam?: string;
   resolutionNotes?: string;
