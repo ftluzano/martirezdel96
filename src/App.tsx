@@ -96,11 +96,12 @@ function MainPortal() {
   };
 
   const handleAddService = async (newSrv: ServiceRequest) => {
-    setServices(prev => [newSrv, ...prev.filter(s => s.id !== newSrv.id)]);
     try {
       await saveServiceToDb(newSrv);
+      setServices(prev => [newSrv, ...prev.filter(s => s.id !== newSrv.id)]);
     } catch (err) {
       console.warn('Failed to save service report to Firestore:', err);
+      throw err;
     }
   };
 

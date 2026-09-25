@@ -70,6 +70,7 @@ export const ResidentReportModal: React.FC<ResidentReportModalProps> = ({
 
   const [submittedRef, setSubmittedRef] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (initialCategoryId) {
@@ -170,9 +171,10 @@ export const ResidentReportModal: React.FC<ResidentReportModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim() || !location.trim()) return;
+    setSubmitError(null);
 
     const refNum = generateServiceReferenceNumber();
     const finalTitle = customTitle.trim() || selectedSubIssue || currentCategoryConfig.name;
@@ -194,8 +196,12 @@ export const ResidentReportModal: React.FC<ResidentReportModalProps> = ({
       photoProof: photoProof || undefined,
     };
 
-    onAddService(newReport);
-    setSubmittedRef(refNum);
+    try {
+      await onAddService(newReport);
+      setSubmittedRef(refNum);
+    } catch (error: any) {
+      setSubmitError(error?.message || 'The report could not be saved. Please try again.');
+    }
   };
 
   const handleCopyRef = () => {
@@ -208,6 +214,7 @@ export const ResidentReportModal: React.FC<ResidentReportModalProps> = ({
 
   const handleResetAndClose = () => {
     setSubmittedRef(null);
+    setSubmitError(null);
     setSelectedSubIssue('');
     setCustomTitle('');
     setDescription('');
@@ -631,6 +638,11 @@ export const ResidentReportModal: React.FC<ResidentReportModalProps> = ({
             )}
 
             {/* Action Buttons */}
+            {submitError && (
+              <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] text-red-700 font-medium">
+                {submitError}
+              </div>
+            )}
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
               <button
                 type="button"

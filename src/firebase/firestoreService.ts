@@ -5,8 +5,6 @@ import {
   updateDoc, 
   getDoc,
   onSnapshot, 
-  query, 
-  orderBy,
   Unsubscribe
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
@@ -204,9 +202,8 @@ export const subscribeServices = (
   let isListening = true;
 
   try {
-    const q = query(collection(db, 'services'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(
-      q,
+      collection(db, 'services'),
       (snapshot) => {
         if (!isListening) return;
         const list: ServiceRequest[] = [];
@@ -220,10 +217,12 @@ export const subscribeServices = (
           list.push(normalized);
         });
 
-        const cached = getCache<ServiceRequest>(CACHE_KEYS.SERVICES);
-        const merged = mergeServiceRecords(list, cached);
-        setCache(CACHE_KEYS.SERVICES, merged);
-        onData(merged);
+        // A successful snapshot is authoritative. Cached records are only a
+        // fallback while Firestore is unavailable; merging them here can make
+        // browser-local reports look like cloud records to administrators.
+        const sorted = mergeServiceRecords(list, []);
+        setCache(CACHE_KEYS.SERVICES, sorted);
+        onData(sorted);
       },
       (err) => {
         console.warn('[Firestore Services] Realtime listener notice:', err.message);
@@ -259,10 +258,8 @@ export const saveServiceToDb = async (service: ServiceRequest): Promise<void> =>
     const docRef = doc(db, 'services', normalizedService.id);
     await setDoc(docRef, normalizedService, { merge: true });
   } catch (error: any) {
-    console.warn('[Firestore Services] Cloud sync notice (saved locally):', error?.message);
-    // Last-resort persisted copy so the admin dashboard can still recover the record in the same browser session.
-    const persisted = getCache<ServiceRequest>(CACHE_KEYS.SERVICES);
-    setCache(CACHE_KEYS.SERVICES, [normalizedService, ...persisted.filter(s => s.id !== normalizedService.id && s.referenceNumber !== normalizedService.referenceNumber)]);
+    console.error('[Firestore Services] Cloud write failed:', error?.message);
+    throw new Error(`Report could not be saved to the live database: ${error?.message || 'unknown Firestore error'}`);
   }
 };
 
