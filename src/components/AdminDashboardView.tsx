@@ -54,6 +54,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [selectedDocForPreview, setSelectedDocForPreview] = useState<DocumentApplication | null>(null);
+  const [selectedService, setSelectedService] = useState<ServiceRequest | null>(null);
   const [viewingProof, setViewingProof] = useState<{ url: string; title: string; ref: string } | null>(null);
   const [actionSuccessNotice, setActionSuccessNotice] = useState<string | null>(null);
   const [announcementTitle, setAnnouncementTitle] = useState('');
@@ -105,6 +106,23 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     onUpdateUserRole(targetUser.uid || targetUser.email, newRole);
     showToast(`Role for ${targetUser.displayName} updated to "${newRole.toUpperCase()}".`);
   };
+
+  const handleQuickStatusUpdate = (srv: ServiceRequest, newStatus: RequestStatus) => {
+    onUpdateServiceStatus(srv.id, newStatus);
+    setSelectedService({ ...srv, status: newStatus });
+    showToast(`Updated ticket ${srv.referenceNumber} to ${newStatus}`);
+  };
+
+  React.useEffect(() => {
+    if (!services.length) {
+      setSelectedService(null);
+      return;
+    }
+
+    if (!selectedService || !services.some(s => s.id === selectedService.id)) {
+      setSelectedService(services[0]);
+    }
+  }, [services, selectedService]);
 
   // Filtered Services
   const filteredServices = services.filter(s => {
@@ -405,133 +423,232 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       {/* TAB 1: SERVICES & RESIDENT REPORTS (OFFICIALS & ADMIN) */}
       {/* ======================================================== */}
       {activeTab === 'services' && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-          <div className="p-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800">
-            <div>
-              <h3 className="text-sm font-bold flex items-center gap-2">
-                <Wrench className="w-4 h-4 text-rose-400" />
-                <span>Resident Reports & Community Concerns</span>
-              </h3>
-              <p className="text-[11px] text-slate-400">
-                Officials and Admin can review reports submitted by residents, check uploaded evidence photos, and update action progress.
-              </p>
+        <div className="grid grid-cols-1 xl:grid-cols-[1.7fr_0.9fr] gap-4">
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+            <div className="p-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-rose-400" />
+                  <span>Resident Reports & Community Concerns</span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Officials and Admin can review reports submitted by residents, check uploaded evidence photos, and update action progress.
+                </p>
+              </div>
+              <span className="text-xs font-mono bg-slate-800 px-2.5 py-1 rounded text-slate-300">
+                Showing {filteredServices.length} reports
+              </span>
             </div>
-            <span className="text-xs font-mono bg-slate-800 px-2.5 py-1 rounded text-slate-300">
-              Showing {filteredServices.length} reports
-            </span>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                    <th className="py-2.5 px-3">Ticket Ref</th>
+                    <th className="py-2.5 px-3">Category</th>
+                    <th className="py-2.5 px-3">Report Details</th>
+                    <th className="py-2.5 px-3">Photo Proof</th>
+                    <th className="py-2.5 px-3">Reported By / Area</th>
+                    <th className="py-2.5 px-3">Priority</th>
+                    <th className="py-2.5 px-3">Update Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredServices.map((srv) => (
+                    <tr
+                      key={srv.id}
+                      onClick={() => setSelectedService(srv)}
+                      className={`hover:bg-slate-50 transition-colors cursor-pointer ${selectedService?.id === srv.id ? 'bg-blue-50/60' : ''}`}
+                    >
+                      <td className="py-3 px-3 font-mono font-bold text-blue-700 whitespace-nowrap">
+                        {srv.referenceNumber}
+                        <span className="block text-[10px] text-slate-400 font-normal">{srv.dateReported}</span>
+                      </td>
+                      <td className="py-3 px-3 capitalize font-medium whitespace-nowrap">
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 font-semibold text-[11px]">
+                          {srv.category.replace(/-/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 max-w-xs">
+                        <div className="font-bold text-slate-900 leading-snug">{srv.title}</div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{srv.description}</p>
+                        <div className="text-[10px] text-slate-400 mt-1 font-medium">📍 {srv.location}</div>
+                      </td>
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        {srv.photoProof ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingProof({ url: srv.photoProof!, title: srv.title, ref: srv.referenceNumber });
+                              }}
+                              className="relative group rounded-lg overflow-hidden border border-slate-300 hover:border-blue-500 shadow-2xs transition-all cursor-pointer block flex-shrink-0"
+                              title="Click to view full photo evidence"
+                            >
+                              <img
+                                src={srv.photoProof}
+                                alt="Proof preview"
+                                className="w-12 h-10 object-cover group-hover:scale-105 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                                <Camera className="w-3.5 h-3.5" />
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingProof({ url: srv.photoProof!, title: srv.title, ref: srv.referenceNumber });
+                              }}
+                              className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 underline cursor-pointer"
+                            >
+                              View Photo
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[11px] italic">No image</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <div className="font-semibold text-slate-800">{srv.reportedBy}</div>
+                        <div className="text-[11px] text-slate-500">{srv.purok}</div>
+                        <div className="text-[10px] text-slate-400">{srv.contactNumber}</div>
+                      </td>
+                      <td className="py-3 px-3 capitalize whitespace-nowrap">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          srv.priority === 'urgent'
+                            ? 'bg-red-100 text-red-800 animate-pulse'
+                            : srv.priority === 'high'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {srv.priority}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          value={srv.status}
+                          onChange={(e) => {
+                            const newStatus = e.target.value as RequestStatus;
+                            onUpdateServiceStatus(srv.id, newStatus);
+                            setSelectedService({ ...srv, status: newStatus });
+                            showToast(`Updated ticket ${srv.referenceNumber} to ${newStatus}`);
+                          }}
+                          className={`text-xs font-bold py-1 px-2.5 rounded-lg border cursor-pointer ${
+                            srv.status === 'completed'
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                              : srv.status === 'ready-pickup'
+                              ? 'bg-blue-50 border-blue-300 text-blue-800'
+                              : srv.status === 'in-review'
+                              ? 'bg-amber-50 border-amber-300 text-amber-800'
+                              : 'bg-white border-slate-300 text-slate-800'
+                          }`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in-review">In-Review</option>
+                          <option value="ready-pickup">Resolved</option>
+                          <option value="completed">Completed / Closed</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredServices.length === 0 && (
+              <div className="p-12 text-center text-slate-500 text-xs">
+                No matching community reports found.
+              </div>
+            )}
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                  <th className="py-2.5 px-3">Ticket Ref</th>
-                  <th className="py-2.5 px-3">Category</th>
-                  <th className="py-2.5 px-3">Report Details</th>
-                  <th className="py-2.5 px-3">Photo Proof</th>
-                  <th className="py-2.5 px-3">Reported By / Area</th>
-                  <th className="py-2.5 px-3">Priority</th>
-                  <th className="py-2.5 px-3">Update Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredServices.map((srv) => (
-                  <tr key={srv.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 px-3 font-mono font-bold text-blue-700 whitespace-nowrap">
-                      {srv.referenceNumber}
-                      <span className="block text-[10px] text-slate-400 font-normal">{srv.dateReported}</span>
-                    </td>
-                    <td className="py-3 px-3 capitalize font-medium whitespace-nowrap">
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 font-semibold text-[11px]">
-                        {srv.category.replace(/-/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 max-w-xs">
-                      <div className="font-bold text-slate-900 leading-snug">{srv.title}</div>
-                      <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{srv.description}</p>
-                      <div className="text-[10px] text-slate-400 mt-1 font-medium">📍 {srv.location}</div>
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      {srv.photoProof ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setViewingProof({ url: srv.photoProof!, title: srv.title, ref: srv.referenceNumber })}
-                            className="relative group rounded-lg overflow-hidden border border-slate-300 hover:border-blue-500 shadow-2xs transition-all cursor-pointer block flex-shrink-0"
-                            title="Click to view full photo evidence"
-                          >
-                            <img
-                              src={srv.photoProof}
-                              alt="Proof preview"
-                              className="w-12 h-10 object-cover group-hover:scale-105 transition-transform"
-                            />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
-                              <Camera className="w-3.5 h-3.5" />
-                            </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setViewingProof({ url: srv.photoProof!, title: srv.title, ref: srv.referenceNumber })}
-                            className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 underline cursor-pointer"
-                          >
-                            View Photo
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px] italic">No image</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      <div className="font-semibold text-slate-800">{srv.reportedBy}</div>
-                      <div className="text-[11px] text-slate-500">{srv.purok}</div>
-                      <div className="text-[10px] text-slate-400">{srv.contactNumber}</div>
-                    </td>
-                    <td className="py-3 px-3 capitalize whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        srv.priority === 'urgent'
-                          ? 'bg-red-100 text-red-800 animate-pulse'
-                          : srv.priority === 'high'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-slate-100 text-slate-700'
-                      }`}>
-                        {srv.priority}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap">
-                      <select
-                        value={srv.status}
-                        onChange={(e) => {
-                          const newStatus = e.target.value as RequestStatus;
-                          onUpdateServiceStatus(srv.id, newStatus);
-                          showToast(`Updated ticket ${srv.referenceNumber} to ${newStatus}`);
-                        }}
-                        className={`text-xs font-bold py-1 px-2.5 rounded-lg border cursor-pointer ${
-                          srv.status === 'completed'
-                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                            : srv.status === 'ready-pickup'
-                            ? 'bg-blue-50 border-blue-300 text-blue-800'
-                            : srv.status === 'in-review'
-                            ? 'bg-amber-50 border-amber-300 text-amber-800'
-                            : 'bg-white border-slate-300 text-slate-800'
+          <aside className="bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-2xs h-fit xl:sticky xl:top-24">
+            {selectedService ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-400 font-bold">Selected report</div>
+                    <div className="font-mono text-sm font-black text-blue-700">{selectedService.referenceNumber}</div>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
+                    selectedService.status === 'completed'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      : selectedService.status === 'ready-pickup'
+                      ? 'bg-blue-50 border-blue-200 text-blue-700'
+                      : selectedService.status === 'in-review'
+                      ? 'bg-amber-50 border-amber-200 text-amber-700'
+                      : 'bg-slate-100 border-slate-200 text-slate-700'
+                  }`}>
+                    {selectedService.status}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-base font-black text-slate-900 leading-snug">{selectedService.title}</h4>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">{selectedService.description}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                  <div className="bg-white border border-slate-200 rounded-lg p-2">
+                    <div className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Area</div>
+                    <div className="mt-1 font-semibold text-slate-800">{selectedService.purok}</div>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-lg p-2">
+                    <div className="font-bold text-slate-500 uppercase tracking-wide text-[10px]">Priority</div>
+                    <div className="mt-1 font-semibold capitalize text-slate-800">{selectedService.priority}</div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-lg p-3 text-[11px] text-slate-600 space-y-1.5">
+                  <div><strong className="text-slate-800">Resident:</strong> {selectedService.reportedBy}</div>
+                  <div><strong className="text-slate-800">Contact:</strong> {selectedService.contactNumber}</div>
+                  <div><strong className="text-slate-800">Location:</strong> {selectedService.location}</div>
+                </div>
+
+                {selectedService.photoProof && (
+                  <div className="space-y-2">
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Evidence</div>
+                    <img
+                      src={selectedService.photoProof}
+                      alt="Selected report evidence"
+                      className="w-full h-36 object-cover rounded-xl border border-slate-200 bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setViewingProof({ url: selectedService.photoProof!, title: selectedService.title, ref: selectedService.referenceNumber })}
+                      className="w-full px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-semibold rounded-lg cursor-pointer"
+                    >
+                      View full photo
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Quick response</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['pending','in-review','ready-pickup','completed'] as RequestStatus[]).map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => handleQuickStatusUpdate(selectedService, status)}
+                        className={`px-2 py-2 rounded-lg text-[10px] font-bold uppercase transition-colors cursor-pointer ${
+                          selectedService.status === status
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
                         }`}
                       >
-                        <option value="pending">Pending</option>
-                        <option value="in-review">In-Review</option>
-                        <option value="ready-pickup">Resolved</option>
-                        <option value="completed">Completed / Closed</option>
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredServices.length === 0 && (
-            <div className="p-12 text-center text-slate-500 text-xs">
-              No matching community reports found.
-            </div>
-          )}
+                        {status === 'ready-pickup' ? 'Resolved' : status === 'completed' ? 'Closed' : status === 'in-review' ? 'In Review' : 'Pending'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-slate-500">Select a report to review case details.</div>
+            )}
+          </aside>
         </div>
       )}
 
