@@ -6,6 +6,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  sendPasswordResetEmail,
   updateProfile as updateFirebaseProfile,
   onAuthStateChanged,
   User as FirebaseUser
@@ -39,7 +40,8 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  register: (name: string, email: string, password: string, phone?: string) => Promise<void>;
+  register: (name: string, email: string, password: string, phone?: string, area?: string, role?: UserRole) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   switchRole: (role: UserRole) => void;
   isFirebaseActive: boolean;
@@ -206,7 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (name: string, email: string, password: string, phone?: string) => {
+  const register = async (name: string, email: string, password: string, phone?: string, area?: string, role?: UserRole) => {
     setLoading(true);
     try {
       const normalizedEmail = email.trim();
@@ -222,13 +224,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Register fallback notice:', err.message);
       }
 
-      const role = determineRoleForEmail(normalizedEmail);
+      const effectiveRole = role || determineRoleForEmail(normalizedEmail);
       const user: UserProfile = {
         uid,
         displayName: name,
         email: normalizedEmail,
-        role,
+        role: effectiveRole,
         phone,
+        purok: area,
         createdAt: new Date().toISOString().split('T')[0],
         lastLogin: new Date().toISOString()
       };
@@ -236,6 +239,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const savedUser = await saveUserToDb(user);
       setCurrentUser(savedUser);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(savedUser));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const forgotPassword = async (email: string) => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      throw new Error('Please enter your email address first.');
+    }
+
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, normalizedEmail);
+    } catch (err: any) {
+      const message = err?.message || 'Unable to send a reset email at the moment.';
+      if (err?.code === 'auth/user-not-found') {
+        throw new Error('No account was found with that email address.');
+      }
+      throw new Error(message.replace('Firebase: ', ''));
     } finally {
       setLoading(false);
     }
@@ -268,6 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         loginWithGoogle,
         register,
+        forgotPassword,
         logout,
         switchRole,
         isFirebaseActive: isFirebaseConfigured(),

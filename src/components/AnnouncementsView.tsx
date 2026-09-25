@@ -144,7 +144,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
 
         {/* Announcements Cards Grid */}
         {filteredAnnouncements.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500 space-y-3">
+          <div className="soft-panel bg-white/90 rounded-2xl border border-slate-200 p-12 text-center text-slate-500 space-y-3 animate-in-view">
             <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
               <BellOff className="w-6 h-6" />
             </div>
@@ -168,7 +168,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
             {filteredAnnouncements.map((item) => (
               <div
                 key={item.id}
-                className="bg-white rounded-2xl border border-slate-200/90 p-5 space-y-3.5 hover:shadow-md transition-shadow flex flex-col justify-between"
+                className="soft-card bg-white/90 rounded-2xl border border-slate-200/90 p-5 space-y-3.5 flex flex-col justify-between animate-in-view"
               >
                 <div className="space-y-2.5">
                   

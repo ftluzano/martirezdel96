@@ -79,12 +79,9 @@ export const SERVICE_CATEGORIES = [
 ];
 
 export const BARANGAY_AREAS = [
-  'Purok 1',
-  'Purok 2',
-  'Purok 3',
-  'Purok 4',
-  'Purok 5',
-  'Purok 6',
-  'Sitio Riverside',
-  'Barangay Proper'
+  'T. Sulit St',
+  'Bagong Calzada',
+  'N. V. Ponce Alley',
+  'G. Manalo',
+  'Martirez St.'
 ] as const;

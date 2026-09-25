@@ -306,7 +306,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   <th className="py-2.5 px-3">Category</th>
                   <th className="py-2.5 px-3">Report Details</th>
                   <th className="py-2.5 px-3">Photo Proof</th>
-                  <th className="py-2.5 px-3">Reported By / Purok</th>
+                  <th className="py-2.5 px-3">Reported By / Area</th>
                   <th className="py-2.5 px-3">Priority</th>
                   <th className="py-2.5 px-3">Update Status</th>
                 </tr>
@@ -539,7 +539,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     <th className="py-2.5 px-3">Citizen / User</th>
                     <th className="py-2.5 px-3">Current Role</th>
                     <th className="py-2.5 px-3">Last Active Login</th>
-                    <th className="py-2.5 px-3">Contact & Purok</th>
+                    <th className="py-2.5 px-3">Contact & Area</th>
                     <th className="py-2.5 px-3 text-right">Role Assignment</th>
                   </tr>
                 </thead>

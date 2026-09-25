@@ -36,6 +36,12 @@ const setCache = <T>(key: string, data: T[]) => {
   } catch {}
 };
 
+export const generateServiceReferenceNumber = (): string => {
+  const year = new Date().getFullYear();
+  const random = Math.floor(1000 + Math.random() * 9000);
+  return `BM96-REP-${year}-${random}`;
+};
+
 // ==========================================
 // ANNOUNCEMENTS
 // ==========================================
@@ -190,7 +196,13 @@ export const subscribeServices = (
         if (!isListening) return;
         const list: ServiceRequest[] = [];
         snapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...docSnap.data() } as ServiceRequest);
+          const data = docSnap.data() as Partial<ServiceRequest>;
+          const normalized: ServiceRequest = {
+            ...(data as any),
+            id: docSnap.id,
+            referenceNumber: data.referenceNumber || generateServiceReferenceNumber(),
+          };
+          list.push(normalized);
         });
         list.sort((a, b) => (b.dateReported || '').localeCompare(a.dateReported || ''));
         setCache(CACHE_KEYS.SERVICES, list);
@@ -214,13 +226,18 @@ export const subscribeServices = (
 };
 
 export const saveServiceToDb = async (service: ServiceRequest): Promise<void> => {
+  const normalizedService: ServiceRequest = {
+    ...service,
+    referenceNumber: service.referenceNumber?.trim() || generateServiceReferenceNumber()
+  };
+
   const current = getCache<ServiceRequest>(CACHE_KEYS.SERVICES);
-  const updated = [service, ...current.filter(s => s.id !== service.id)];
+  const updated = [normalizedService, ...current.filter(s => s.id !== normalizedService.id)];
   setCache(CACHE_KEYS.SERVICES, updated);
 
   try {
-    const docRef = doc(db, 'services', service.id);
-    await setDoc(docRef, service, { merge: true });
+    const docRef = doc(db, 'services', normalizedService.id);
+    await setDoc(docRef, normalizedService, { merge: true });
   } catch (error: any) {
     console.warn('[Firestore Services] Cloud sync notice (saved locally):', error?.message);
   }

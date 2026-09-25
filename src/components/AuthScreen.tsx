@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { BarangayLogo } from './BarangayLogo';
-import { Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff, MapPin } from 'lucide-react';
+import { BARANGAY_AREAS } from '../data/mockData';
 import defaultHallImage from '../assets/images/martirez_barangay_hall_1790315749540.jpg';
 
 export const AuthScreen: React.FC = () => {
-  const { login, loginWithGoogle, register, loading } = useAuth();
+  const { login, loginWithGoogle, register, forgotPassword, loading } = useAuth();
   const [mode, setMode] = useState<'signin' | 'register'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [selectedArea, setSelectedArea] = useState<string>(BARANGAY_AREAS[0]);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Validation: all fields must be filled before entering
   const isSignInValid = email.trim() !== '' && password.trim() !== '';
@@ -20,13 +23,32 @@ export const AuthScreen: React.FC = () => {
     name.trim() !== '' && 
     email.trim() !== '' && 
     phone.trim() !== '' && 
+    selectedArea.trim() !== '' &&
     password.trim() !== '';
 
   const isFormValid = mode === 'signin' ? isSignInValid : isRegisterValid;
 
+  const handleForgotPassword = async () => {
+    setError(null);
+    setSuccessMessage(null);
+
+    if (!email.trim()) {
+      setError('Please enter your email address first.');
+      return;
+    }
+
+    try {
+      await forgotPassword(email.trim());
+      setSuccessMessage('Password reset email sent. Please check your inbox and spam folder.');
+    } catch (err: any) {
+      setError(err.message || 'Unable to send the password reset email.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
 
     try {
       if (mode === 'signin') {
@@ -40,7 +62,7 @@ export const AuthScreen: React.FC = () => {
           setError('Please fill out all fields.');
           return;
         }
-        await register(name.trim(), email.trim(), password, phone.trim());
+        await register(name.trim(), email.trim(), password, phone.trim(), selectedArea);
       }
     } catch (err: any) {
       if (err.message) {
@@ -230,6 +252,12 @@ export const AuthScreen: React.FC = () => {
               </div>
             )}
 
+            {successMessage && (
+              <div className="p-3 bg-emerald-50/90 border border-emerald-200 text-emerald-700 rounded-lg text-xs leading-relaxed">
+                {successMessage}
+              </div>
+            )}
+
             {mode === 'register' && (
               <>
                 <div>
@@ -263,6 +291,26 @@ export const AuthScreen: React.FC = () => {
                       placeholder=""
                       className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300/90 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white/95"
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Area <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <select
+                      value={selectedArea}
+                      onChange={(e) => setSelectedArea(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300/90 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white/95"
+                    >
+                      {BARANGAY_AREAS.map((area) => (
+                        <option key={area} value={area}>
+                          {area}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </>
@@ -308,6 +356,17 @@ export const AuthScreen: React.FC = () => {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {mode === 'signin' && (
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 transition-colors cursor-pointer"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}

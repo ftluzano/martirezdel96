@@ -3,6 +3,7 @@ import { REPORT_CATEGORIES_DATA, ReportCategoryConfig } from '../data/reportCate
 import { BARANGAY_AREAS } from '../data/mockData';
 import { ServiceRequest, PriorityLevel } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { generateServiceReferenceNumber } from '../firebase/firestoreService';
 import { 
   X, 
   Send, 
@@ -173,7 +174,7 @@ export const ResidentReportModal: React.FC<ResidentReportModalProps> = ({
     e.preventDefault();
     if (!description.trim() || !location.trim()) return;
 
-    const refNum = `BM96-REP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const refNum = generateServiceReferenceNumber();
     const finalTitle = customTitle.trim() || selectedSubIssue || currentCategoryConfig.name;
 
     const newReport: ServiceRequest = {

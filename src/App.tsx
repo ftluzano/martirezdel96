@@ -166,8 +166,11 @@ function MainPortal() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
-      
+    <div className="app-shell relative min-h-screen flex flex-col text-slate-900 overflow-hidden">
+      <div className="floating-orb left-[-80px] top-28 h-64 w-64 bg-blue-400/40" />
+      <div className="floating-orb right-[-40px] top-20 h-72 w-72 bg-violet-400/30" />
+      <div className="floating-orb left-1/3 bottom-8 h-64 w-64 bg-cyan-400/25" />
+
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -182,7 +185,7 @@ function MainPortal() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1">
+      <main className="relative flex-1 z-10">
         {activeTab === 'announcements' && (
           <AnnouncementsView
             announcements={announcements}

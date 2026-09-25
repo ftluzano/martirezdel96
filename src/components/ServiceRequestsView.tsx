@@ -104,7 +104,7 @@ export const ServiceRequestsView: React.FC<ServiceRequestsViewProps> = ({
         </div>
 
         {services.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500 text-xs">
+          <div className="soft-panel bg-white/90 rounded-xl border border-slate-200 p-12 text-center text-slate-500 text-xs animate-in-view">
             No active service requests reported yet. Click "Submit a Report" above to submit one with photo evidence.
           </div>
         ) : (
@@ -112,7 +112,7 @@ export const ServiceRequestsView: React.FC<ServiceRequestsViewProps> = ({
             {services.map((srv) => (
               <div
                 key={srv.id}
-                className="bg-white rounded-xl border border-slate-200 p-4 space-y-3 text-xs shadow-2xs hover:shadow-sm transition-shadow flex flex-col justify-between"
+                className="soft-card bg-white/90 rounded-xl border border-slate-200 p-4 space-y-3 text-xs shadow-2xs flex flex-col justify-between animate-in-view"
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-slate-500">
