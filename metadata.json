@@ -1,0 +1,6 @@
+{
+  "name": "Serbisyong Martirez del '96",
+  "description": "Official Public Services Portal of Barangay Martirez del '96 for Document Processing, Community Announcements, and Service Requests.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,736 @@
+import React, { useState } from 'react';
+import { DocumentApplication, ServiceRequest, RequestStatus, UserProfile, UserRole } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { 
+  FileText, 
+  Wrench, 
+  Search, 
+  Camera, 
+  X, 
+  Users, 
+  ShieldCheck, 
+  ShieldAlert, 
+  CheckCircle2, 
+  Clock, 
+  UserCheck, 
+  UserPlus,
+  Mail,
+  Phone,
+  AlertTriangle
+} from 'lucide-react';
+import { DocumentCertificateModal } from './DocumentCertificateModal';
+
+interface AdminDashboardViewProps {
+  documents: DocumentApplication[];
+  services: ServiceRequest[];
+  users: UserProfile[];
+  onUpdateDocStatus: (id: string, status: RequestStatus, notes?: string) => void;
+  onUpdateServiceStatus: (id: string, status: RequestStatus, resolutionNotes?: string) => void;
+  onUpdateUserRole: (uidOrEmail: string, newRole: UserRole) => void;
+}
+
+export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
+  documents,
+  services,
+  users,
+  onUpdateDocStatus,
+  onUpdateServiceStatus,
+  onUpdateUserRole
+}) => {
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
+  const isOfficial = currentUser?.role === 'official';
+
+  // Default tab: if admin, show users or services; if official, show services
+  const [activeTab, setActiveTab] = useState<'services' | 'documents' | 'users'>('services');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [selectedDocForPreview, setSelectedDocForPreview] = useState<DocumentApplication | null>(null);
+  const [viewingProof, setViewingProof] = useState<{ url: string; title: string; ref: string } | null>(null);
+  const [actionSuccessNotice, setActionSuccessNotice] = useState<string | null>(null);
+
+  // Metrics
+  const pendingDocs = documents.filter(d => d.status === 'pending').length;
+  const readyDocs = documents.filter(d => d.status === 'ready-pickup').length;
+  const pendingServices = services.filter(s => s.status === 'pending' || s.status === 'in-review').length;
+  const resolvedServices = services.filter(s => s.status === 'ready-pickup' || s.status === 'completed').length;
+  
+  const totalUsersCount = users.length;
+  const officialsCount = users.filter(u => u.role === 'official').length;
+  const residentsCount = users.filter(u => u.role === 'resident').length;
+
+  const showToast = (msg: string) => {
+    setActionSuccessNotice(msg);
+    setTimeout(() => {
+      setActionSuccessNotice(null);
+    }, 4000);
+  };
+
+  const handleRoleChange = (targetUser: UserProfile, newRole: UserRole) => {
+    onUpdateUserRole(targetUser.uid || targetUser.email, newRole);
+    showToast(`Role for ${targetUser.displayName} updated to "${newRole.toUpperCase()}".`);
+  };
+
+  // Filtered Services
+  const filteredServices = services.filter(s => {
+    const matchesSearch = !search ||
+      s.referenceNumber.toLowerCase().includes(search.toLowerCase()) ||
+      s.title.toLowerCase().includes(search.toLowerCase()) ||
+      s.reportedBy.toLowerCase().includes(search.toLowerCase()) ||
+      s.location.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Filtered Documents
+  const filteredDocs = documents.filter(d => {
+    const matchesSearch = !search || 
+      d.referenceNumber.toLowerCase().includes(search.toLowerCase()) ||
+      d.applicantName.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Filtered Users
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = !search ||
+      u.displayName.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase()) ||
+      (u.phone && u.phone.includes(search)) ||
+      (u.purok && u.purok.toLowerCase().includes(search.toLowerCase()));
+    const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  const formatTimestamp = (dateStr?: string) => {
+    if (!dateStr) return 'Active recently';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      
+      {/* Toast Notification */}
+      {actionSuccessNotice && (
+        <div className="fixed top-20 right-6 z-50 bg-emerald-700 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 animate-in slide-in-from-top-4 text-xs font-semibold border border-emerald-500">
+          <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
+          <span>{actionSuccessNotice}</span>
+        </div>
+      )}
+
+      {/* Admin Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+              {isAdmin ? 'Barangay Administrative & Role Desk' : 'Barangay Official Operations Desk'}
+            </h1>
+            {isAdmin ? (
+              <span className="px-2.5 py-0.5 bg-purple-100 border border-purple-300 text-purple-800 text-[10px] font-bold rounded-full uppercase">
+                Admin Panel
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-bold rounded-full uppercase">
+                Official Access
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            {isAdmin 
+              ? 'Administrator Franklin Kyle Luzano: Manage user access, assign Official roles, inspect community reports, and review documents.'
+              : 'Barangay Official Staff: Monitor resident concerns, review reported issues, and update action statuses.'}
+          </p>
+        </div>
+      </div>
+
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Resident Reports</span>
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+          </div>
+          <p className="text-2xl font-black font-mono text-rose-600 mt-1">{pendingServices}</p>
+          <span className="text-[10px] text-slate-400 mt-0.5 block">{resolvedServices} resolved to date</span>
+        </div>
+
+        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Document Requests</span>
+            <FileText className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          <p className="text-2xl font-black font-mono text-blue-700 mt-1">{pendingDocs}</p>
+          <span className="text-[10px] text-slate-400 mt-0.5 block">{readyDocs} ready for release</span>
+        </div>
+
+        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Portal Users Logged In</span>
+            <Users className="w-3.5 h-3.5 text-indigo-500" />
+          </div>
+          <p className="text-2xl font-black font-mono text-indigo-600 mt-1">{totalUsersCount}</p>
+          <span className="text-[10px] text-slate-400 mt-0.5 block">{residentsCount} active citizens</span>
+        </div>
+
+        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Assigned Officials</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+          </div>
+          <p className="text-2xl font-black font-mono text-emerald-600 mt-1">{officialsCount}</p>
+          <span className="text-[10px] text-slate-400 mt-0.5 block">Authorized barangay team</span>
+        </div>
+      </div>
+
+      {/* Tabs & Search Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          <button
+            onClick={() => { setActiveTab('services'); setStatusFilter('all'); }}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'services'
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <Wrench className="w-3.5 h-3.5" />
+            <span>Citizen Reports ({services.length})</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('documents'); setStatusFilter('all'); }}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'documents'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Documents ({documents.length})</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('users'); setRoleFilter('all'); }}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'users'
+                ? 'bg-purple-700 text-white shadow-xs'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>User Directory & Roles ({users.length})</span>
+          </button>
+        </div>
+
+        {/* Filter Controls */}
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-60">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={activeTab === 'users' ? 'Search by name, email...' : 'Search by title, ref...'}
+              className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-600 bg-white"
+            />
+          </div>
+
+          {activeTab === 'users' ? (
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-600 bg-white text-slate-700"
+            >
+              <option value="all">All Roles</option>
+              <option value="official">Officials</option>
+              <option value="resident">Residents</option>
+              <option value="admin">Admins</option>
+            </select>
+          ) : (
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-600 bg-white text-slate-700"
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="in-review">In-Review</option>
+              <option value="ready-pickup">Resolved</option>
+              <option value="completed">Completed / Closed</option>
+            </select>
+          )}
+        </div>
+
+      </div>
+
+      {/* ======================================================== */}
+      {/* TAB 1: SERVICES & RESIDENT REPORTS (OFFICIALS & ADMIN) */}
+      {/* ======================================================== */}
+      {activeTab === 'services' && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+          <div className="p-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800">
+            <div>
+              <h3 className="text-sm font-bold flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-rose-400" />
+                <span>Resident Reports & Community Concerns</span>
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Officials and Admin can review reports submitted by residents, check uploaded evidence photos, and update action progress.
+              </p>
+            </div>
+            <span className="text-xs font-mono bg-slate-800 px-2.5 py-1 rounded text-slate-300">
+              Showing {filteredServices.length} reports
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                  <th className="py-2.5 px-3">Ticket Ref</th>
+                  <th className="py-2.5 px-3">Category</th>
+                  <th className="py-2.5 px-3">Report Details</th>
+                  <th className="py-2.5 px-3">Photo Proof</th>
+                  <th className="py-2.5 px-3">Reported By / Purok</th>
+                  <th className="py-2.5 px-3">Priority</th>
+                  <th className="py-2.5 px-3">Update Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredServices.map((srv) => (
+                  <tr key={srv.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-3 px-3 font-mono font-bold text-blue-700 whitespace-nowrap">
+                      {srv.referenceNumber}
+                      <span className="block text-[10px] text-slate-400 font-normal">{srv.dateReported}</span>
+                    </td>
+                    <td className="py-3 px-3 capitalize font-medium whitespace-nowrap">
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 font-semibold text-[11px]">
+                        {srv.category.replace(/-/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 max-w-xs">
+                      <div className="font-bold text-slate-900 leading-snug">{srv.title}</div>
+                      <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{srv.description}</p>
+                      <div className="text-[10px] text-slate-400 mt-1 font-medium">📍 {srv.location}</div>
+                    </td>
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      {srv.photoProof ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setViewingProof({ url: srv.photoProof!, title: srv.title, ref: srv.referenceNumber })}
+                            className="relative group rounded-lg overflow-hidden border border-slate-300 hover:border-blue-500 shadow-2xs transition-all cursor-pointer block flex-shrink-0"
+                            title="Click to view full photo evidence"
+                          >
+                            <img
+                              src={srv.photoProof}
+                              alt="Proof preview"
+                              className="w-12 h-10 object-cover group-hover:scale-105 transition-transform"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                              <Camera className="w-3.5 h-3.5" />
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setViewingProof({ url: srv.photoProof!, title: srv.title, ref: srv.referenceNumber })}
+                            className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 underline cursor-pointer"
+                          >
+                            View Photo
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-[11px] italic">No image</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      <div className="font-semibold text-slate-800">{srv.reportedBy}</div>
+                      <div className="text-[11px] text-slate-500">{srv.purok}</div>
+                      <div className="text-[10px] text-slate-400">{srv.contactNumber}</div>
+                    </td>
+                    <td className="py-3 px-3 capitalize whitespace-nowrap">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        srv.priority === 'urgent'
+                          ? 'bg-red-100 text-red-800 animate-pulse'
+                          : srv.priority === 'high'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {srv.priority}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      <select
+                        value={srv.status}
+                        onChange={(e) => {
+                          const newStatus = e.target.value as RequestStatus;
+                          onUpdateServiceStatus(srv.id, newStatus);
+                          showToast(`Updated ticket ${srv.referenceNumber} to ${newStatus}`);
+                        }}
+                        className={`text-xs font-bold py-1 px-2.5 rounded-lg border cursor-pointer ${
+                          srv.status === 'completed'
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                            : srv.status === 'ready-pickup'
+                            ? 'bg-blue-50 border-blue-300 text-blue-800'
+                            : srv.status === 'in-review'
+                            ? 'bg-amber-50 border-amber-300 text-amber-800'
+                            : 'bg-white border-slate-300 text-slate-800'
+                        }`}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="in-review">In-Review</option>
+                        <option value="ready-pickup">Resolved</option>
+                        <option value="completed">Completed / Closed</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredServices.length === 0 && (
+            <div className="p-12 text-center text-slate-500 text-xs">
+              No matching community reports found.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 2: DOCUMENT PROCESSING DESK */}
+      {/* ======================================================== */}
+      {activeTab === 'documents' && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+          <div className="p-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800">
+            <div>
+              <h3 className="text-sm font-bold flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-400" />
+                <span>Document Applications & Certification Desk</span>
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Process Barangay Clearances, Certificates of Residency, Indigency, and preview official print certificates.
+              </p>
+            </div>
+            <span className="text-xs font-mono bg-slate-800 px-2.5 py-1 rounded text-slate-300">
+              Showing {filteredDocs.length} applications
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                  <th className="py-2.5 px-3">Reference No.</th>
+                  <th className="py-2.5 px-3">Document</th>
+                  <th className="py-2.5 px-3">Applicant Name</th>
+                  <th className="py-2.5 px-3">Fee</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 text-right">Certificate Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredDocs.map((doc) => (
+                  <tr key={doc.id} className="hover:bg-slate-50">
+                    <td className="py-3 px-3 font-mono font-bold text-blue-700 whitespace-nowrap">
+                      {doc.referenceNumber}
+                      <span className="block text-[10px] text-slate-400 font-normal">{doc.dateSubmitted}</span>
+                    </td>
+                    <td className="py-3 px-3 capitalize font-semibold whitespace-nowrap text-slate-900">
+                      {doc.documentType.replace(/-/g, ' ')}
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="font-semibold text-slate-900">{doc.applicantName}</div>
+                      <div className="text-[11px] text-slate-400">{doc.purok} · {doc.applicantPhone}</div>
+                    </td>
+                    <td className="py-3 px-3 font-mono font-semibold whitespace-nowrap">
+                      {doc.fee === 0 ? 'Free' : `₱${doc.fee}`}
+                    </td>
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      <select
+                        value={doc.status}
+                        onChange={(e) => {
+                          const newStatus = e.target.value as RequestStatus;
+                          onUpdateDocStatus(doc.id, newStatus);
+                          showToast(`Updated document application ${doc.referenceNumber}`);
+                        }}
+                        className="text-xs font-semibold py-1 px-2.5 rounded border border-slate-300 bg-white cursor-pointer"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="in-review">In-Review</option>
+                        <option value="ready-pickup">Ready for Pick-up</option>
+                        <option value="completed">Completed</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                    </td>
+                    <td className="py-3 px-3 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => setSelectedDocForPreview(doc)}
+                        className="px-3 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer transition-colors"
+                      >
+                        Preview Certificate
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredDocs.length === 0 && (
+            <div className="p-12 text-center text-slate-500 text-xs">
+              No matching document applications found.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 3: USER DIRECTORY & ROLE ASSIGNMENT (ADMIN FRANKLIN) */}
+      {/* ======================================================== */}
+      {activeTab === 'users' && (
+        <div className="space-y-4">
+          
+          <div className="bg-gradient-to-r from-purple-950 via-slate-900 to-slate-900 rounded-2xl p-5 text-white border border-purple-800/40 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-purple-600/30 text-purple-300 border border-purple-400/30">
+                  <ShieldCheck className="w-5 h-5" />
+                </span>
+                <h3 className="text-base sm:text-lg font-black tracking-tight text-white">
+                  User Accounts & Official Role Management
+                </h3>
+              </div>
+              <p className="text-xs text-purple-200/80 max-w-2xl leading-relaxed">
+                As Administrator, you can view everyone who logged in to the portal and promote residents to <strong>Official</strong>. 
+                Assigned Officials immediately gain access to the <strong>Official Desk</strong> to review citizen reports and publish <strong>Announcements/Advisories</strong>.
+              </p>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-2 bg-purple-900/60 border border-purple-400/20 px-3 py-2 rounded-xl text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div>
+                <span className="block font-bold text-white text-[11px]">Primary Admin Account:</span>
+                <span className="text-[11px] font-mono text-purple-200">franklinkyleluzano@gmail.com</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                    <th className="py-2.5 px-3">Citizen / User</th>
+                    <th className="py-2.5 px-3">Current Role</th>
+                    <th className="py-2.5 px-3">Last Active Login</th>
+                    <th className="py-2.5 px-3">Contact & Purok</th>
+                    <th className="py-2.5 px-3 text-right">Role Assignment</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredUsers.map((user) => {
+                    const isFranklin = user.email.toLowerCase() === 'franklinkyleluzano@gmail.com';
+
+                    return (
+                      <tr key={user.uid || user.email} className="hover:bg-slate-50 transition-colors">
+                        
+                        {/* User Identity */}
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                              user.role === 'admin'
+                                ? 'bg-purple-600 text-white'
+                                : user.role === 'official'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-200 text-slate-700'
+                            }`}>
+                              {user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                <span className="truncate">{user.displayName || 'Resident User'}</span>
+                                {isFranklin && (
+                                  <span className="px-1.5 py-0.2 bg-purple-100 text-purple-800 text-[9px] font-extrabold rounded">
+                                    YOU / ADMIN
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-slate-500 font-mono truncate block flex items-center gap-1">
+                                <Mail className="w-3 h-3 text-slate-400" />
+                                {user.email}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Role Badge */}
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {user.role === 'admin' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase bg-purple-100 text-purple-800 border border-purple-200">
+                              👑 Administrator
+                            </span>
+                          ) : user.role === 'official' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              🛡️ Official Staff
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase bg-slate-100 text-slate-700 border border-slate-200">
+                              👤 Resident
+                            </span>
+                          )}
+                          {user.assignedBy && (
+                            <span className="block text-[10px] text-slate-400 mt-0.5">
+                              Assigned by admin
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Last Login */}
+                        <td className="py-3 px-3 whitespace-nowrap text-slate-600">
+                          <div className="flex items-center gap-1.5 font-medium text-slate-800">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{formatTimestamp(user.lastLogin)}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                            Registered: {user.createdAt || 'Active'}
+                          </span>
+                        </td>
+
+                        {/* Contact info */}
+                        <td className="py-3 px-3 whitespace-nowrap text-slate-600">
+                          <div>{user.purok || 'Purok 1'}</div>
+                          <div className="text-[11px] text-slate-400">{user.phone || 'No phone recorded'}</div>
+                        </td>
+
+                        {/* Role Assignment Actions */}
+                        <td className="py-3 px-3 text-right whitespace-nowrap">
+                          {isFranklin ? (
+                            <span className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded border border-purple-200">
+                              Superuser (Permanent)
+                            </span>
+                          ) : isAdmin ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              {user.role === 'resident' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRoleChange(user, 'official')}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                                  title="Grant Official role to this user"
+                                >
+                                  <UserPlus className="w-3.5 h-3.5" />
+                                  <span>Assign Official</span>
+                                </button>
+                              ) : user.role === 'official' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRoleChange(user, 'resident')}
+                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg transition-colors border border-slate-300 cursor-pointer"
+                                  title="Reset this user to regular Resident role"
+                                >
+                                  <span>Revoke to Resident</span>
+                                </button>
+                              ) : null}
+
+                              {/* Dropdown for explicit role assignment */}
+                              <select
+                                value={user.role}
+                                onChange={(e) => handleRoleChange(user, e.target.value as UserRole)}
+                                className="px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white font-medium cursor-pointer"
+                              >
+                                <option value="resident">Resident</option>
+                                <option value="official">Official</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">
+                              View only
+                            </span>
+                          )}
+                        </td>
+
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredUsers.length === 0 && (
+              <div className="p-12 text-center text-slate-500 text-xs space-y-2">
+                <Users className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="font-semibold text-slate-700">No registered users in live database yet.</p>
+                <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                  When residents or staff sign in or register through Firebase Authentication, their live accounts will appear here automatically.
+                </p>
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {/* Certificate Modal */}
+      {selectedDocForPreview && (
+        <DocumentCertificateModal
+          doc={selectedDocForPreview}
+          onClose={() => setSelectedDocForPreview(null)}
+        />
+      )}
+
+      {/* Resident Proof Modal */}
+      {viewingProof && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="relative max-w-2xl w-full bg-white rounded-2xl shadow-2xl border border-slate-800 overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+              <div>
+                <span className="font-mono text-xs text-blue-400 font-bold block">{viewingProof.ref}</span>
+                <span className="text-xs font-semibold text-slate-200 truncate block">{viewingProof.title}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingProof(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-3 bg-slate-950 flex items-center justify-center max-h-[75vh] overflow-hidden">
+              <img
+                src={viewingProof.url}
+                alt="Resident Proof Full Resolution"
+                className="max-h-[70vh] w-auto max-w-full object-contain rounded-lg shadow-lg"
+              />
+            </div>
+            <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setViewingProof(null)}
+                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
