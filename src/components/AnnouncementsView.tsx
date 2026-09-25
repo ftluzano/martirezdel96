@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Announcement, ServiceRequest } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { ResidentReportModal } from './ResidentReportModal';
 import { 
   Search, 
   Plus, 
@@ -9,7 +8,6 @@ import {
   MapPin, 
   ArrowRight,
   Clock,
-  AlertTriangle,
   X,
   BellOff
 } from 'lucide-react';
@@ -39,8 +37,6 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
-  const [reportModalOpen, setReportModalOpen] = useState<boolean>(false);
-  const [selectedReportCatId, setSelectedReportCatId] = useState<string>('neighborhood-disputes');
   const [viewingAnnouncement, setViewingAnnouncement] = useState<Announcement | null>(null);
 
   // New Announcement form state
@@ -61,13 +57,6 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
       (item.location && item.location.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
-
-  const handleOpenReportModal = (catId?: string) => {
-    if (catId) {
-      setSelectedReportCatId(catId);
-    }
-    setReportModalOpen(true);
-  };
 
   const handleCreateAnnouncementSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,29 +98,17 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
             </h1>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          {/* Post Advisory: for official and admin accounts */}
+          {(currentUser?.role === 'official' || currentUser?.role === 'admin') && (
             <button
               type="button"
-              onClick={() => handleOpenReportModal()}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-sm shadow-red-700/20 hover:shadow-md cursor-pointer"
+              onClick={() => setShowCreateModal(true)}
+              className="px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
-              <AlertTriangle className="w-4 h-4 text-white" />
-              <span>Submit a Report</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Post Advisory</span>
             </button>
-
-            {/* Post Advisory: for official and admin accounts */}
-            {(currentUser?.role === 'official' || currentUser?.role === 'admin') && (
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(true)}
-                className="px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Post Advisory</span>
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Filter and Search Bar */}
@@ -273,16 +250,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
 
       </section>
 
-      {/* MODAL 1: RESIDENT REPORT MODAL (WITH CATEGORY CHOICES & PHOTO PROOF) */}
-      <ResidentReportModal
-        isOpen={reportModalOpen}
-        onClose={() => setReportModalOpen(false)}
-        initialCategoryId={selectedReportCatId}
-        onAddService={onAddService}
-        onNavigateToTracker={onNavigateToTracker}
-      />
-
-      {/* MODAL 2: FULL ANNOUNCEMENT DETAILS */}
+      {/* FULL ANNOUNCEMENT DETAILS */}
       {viewingAnnouncement && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
           <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95">

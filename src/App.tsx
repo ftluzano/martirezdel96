@@ -31,7 +31,6 @@ import {
 function MainPortal() {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('announcements');
-  const [heroReportModalOpen, setHeroReportModalOpen] = useState<boolean>(false);
 
   // Pure Database States (No local fake data)
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -179,7 +178,6 @@ function MainPortal() {
       {activeTab === 'announcements' && (
         <HeroSection 
           onNavigate={(tab) => setActiveTab(tab)} 
-          onOpenReportModal={() => setHeroReportModalOpen(true)}
         />
       )}
 
@@ -238,14 +236,6 @@ function MainPortal() {
           />
         )}
       </main>
-
-      {/* Hero Section Modal Trigger */}
-      <ResidentReportModal
-        isOpen={heroReportModalOpen}
-        onClose={() => setHeroReportModalOpen(false)}
-        onAddService={handleAddService}
-        onNavigateToTracker={() => setActiveTab('tracker')}
-      />
 
       {/* Theme Song Player */}
       <ThemeSongPlayer />
